@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+ortools = "~=9.10"
+pulp = "~=3.1"
+pandas = "~=2.2"
+openpyxl = "*"
+tqdm = "*"
+
+[dev-packages]
+ipykernel = "*"
+
+[requires]
+python_version = "3.12"
