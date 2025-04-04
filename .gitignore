@@ -1,7 +1,10 @@
 trying.py
 misc/
-_pycache_/
+__pycache__/
+src/build_forms/__pycache__/
 instruction.md
 *.lp
 dist/
 .pypirc
+*.pyc
+FlexATA.wiki/
