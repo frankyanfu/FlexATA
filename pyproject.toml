@@ -7,7 +7,7 @@ packages = ["FlexATA"]
 
 [project]
 name = "FlexATA"
-version = "0.0.7"
+version = "0.0.8"
 authors = [
   { name="Yan Fu", email="yanfu.phd@gmail.com" },
 ]
