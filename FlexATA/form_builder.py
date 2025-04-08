@@ -1,26 +1,19 @@
 import pulp as pl
 import pandas as pd
-from build_forms.utility import *
+from FlexATA.utility import *
 from pandas.errors import SettingWithCopyWarning
 import warnings
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
-import importlib.resources
 
-## provide sample data
-## add enemy constraints there
-## add CPLEX solver
-## proportion of overlapping items constraints
-## set solver
-## add sample data to the package
-## Note: The above importlib.resources is used to read in sample data files from the package directory.
-## make it publicly available in Github
+
+
 ##TODO make it a plot for information and SE
-##TODO provide sample code
 
 
-class form_assembly:
+
+class FormBuilder:
     """
-    form_assembly
+    form_builder
     =====================
     A class to define and solve a linear programming problem for form assembly. This class is designed to handle 
     various constraints and objectives related to assembling forms from a pool of items, including information 
@@ -176,7 +169,7 @@ class form_assembly:
     @irt_a_column.setter
     def irt_a_column(self,irt_a_column):
         if irt_a_column not in self.__pool.columns:
-            raise f"The irt_a_column {irt_a_column} doesn't exist in the item pool"
+            raise Exception(f"The irt_a_column {irt_a_column} doesn't exist in the item pool")
         self.__irt_a_column=irt_a_column
     
     ### get irt_b_column
@@ -188,7 +181,7 @@ class form_assembly:
     @irt_b_column.setter
     def irt_b_column(self,irt_b_column):
         if irt_b_column not in self.__pool.columns:
-            raise f"The irt_b_column {irt_b_column} doesn't exist in the item pool"
+            raise Exception(f"The irt_b_column {irt_b_column} doesn't exist in the item pool")
         self.__irt_b_column=irt_b_column
         
     
@@ -201,7 +194,7 @@ class form_assembly:
     @irt_c_column.setter 
     def irt_c_column(self,irt_c_column):
         if irt_c_column not in self.__pool.columns:
-            raise f"The irt_c_column {irt_c_column} doesn't exist in the item pool"
+            raise Exception(f"The irt_c_column {irt_c_column} doesn't exist in the item pool")
         # fill na values with 0 for irt_c
         self.__pool[irt_c_column]=self.__pool[irt_c_column].fillna(0)
         # self.__pool[irt_c_column].fillna(0,inplace=True)  # fill NaN values with 0
@@ -275,7 +268,13 @@ class form_assembly:
         self.__theta_points=theta_points
         self.__info_targets=info_targets
         if len(theta_points)!=len(info_targets):
-            raise "The length of theta_points and info_targets are different"
+            raise Exception("The length of theta_points and info_targets are different")
+        if not self.__irt_a_column:
+            raise Exception("Please set the irt_a_column in the item pool before adding information constraints")
+        if not self.__irt_b_column:
+            raise Exception("Please set the irt_b_column in the item pool before adding information constraints")
+        if not self.__irt_c_column:
+            raise Exception("Please set the irt_c_column in the item pool before adding information constraints")
 
         for i,theta in enumerate(theta_points):
             information = [fisher_info(x[0],x[1],x[2],theta,D=1.702) for x in self.__pool[[self.__irt_a_column,self.__irt_b_column,self.__irt_c_column]].values]
@@ -287,7 +286,7 @@ class form_assembly:
         
     def add_information_constraints(self,information,target,name):
         if len(information)!=self.__pool_size:
-            raise "The information length is different from the pool size"
+            raise Exception("The information length is different from the pool size")
         
         for r in range(self.__number_of_forms):
             self.__prob += (pl.lpSum([self.__items[i][r]*information[i] for i in range(self.__pool_size)]+self.__delta) >= target,f"form{r}_{name}_plus_delta")
@@ -296,7 +295,7 @@ class form_assembly:
     ##### add content constraints
     def add_content_constraints(self,constraints,target,direction,name):
         if len(constraints)!=self.__pool_size:
-            raise "The content constraints length is different from the pool size"
+            raise Exception("The content constraints length is different from the pool size")
         direction_selection={
             "==":pl.LpConstraintEQ,
             ">=":pl.LpConstraintGE,
@@ -313,19 +312,27 @@ class form_assembly:
     def add_enemy_constraints(self,enemy_pairs,itemid_column,enemyid_column):
         ## Check if the itemID and enemyID columns exist in the enemy_pairs
         if itemid_column not in enemy_pairs.columns:
-            raise f"The itemid_column {itemid_column} doesn't exist in the enemy_pairs"
+            raise Exception(f"The itemid_column {itemid_column} doesn't exist in the enemy_pairs")
         
         if enemyid_column not in enemy_pairs.columns:
-            raise f"The enemyid_column {enemyid_column} doesn't exist in the enemy_pairs"
+            raise Exception(f"The enemyid_column {enemyid_column} doesn't exist in the enemy_pairs")
+
+        if not self.__item_id_column:
+            raise Exception("Please set the item_id_column in the item pool before adding enemy constraints")
 
         ## For enemy_pairs dataset, order ItemID and EnemyID based on the alphabetical order and combine them to create pairs
+        all_item_ids = self.__pool[self.__item_id_column].to_list()
+        ### only keep the pairs that are in the item pool
+        enemy_pairs = enemy_pairs[enemy_pairs[itemid_column].isin(all_item_ids) & enemy_pairs[enemyid_column].isin(all_item_ids)]
         all_enemy_pairs = enemy_pairs.apply(lambda x: sorted([x[itemid_column],x[enemyid_column]]) , axis=1).tolist()
 
         ### Get unique pairs
         all_enemy_pairs_unique = {}
         for enemy_pair in all_enemy_pairs:
-            pair="&".join(enemy_pair)
-            all_enemy_pairs_unique[pair]=enemy_pair
+            new_pair = list(set(enemy_pair))
+            pair="&".join(new_pair)
+            if not pair in all_enemy_pairs_unique.keys():
+                all_enemy_pairs_unique[pair]=new_pair
     
 
         for pair_name,enemy_pair in all_enemy_pairs_unique.items():
@@ -338,10 +345,10 @@ class form_assembly:
     #### constrain number of items within a set
     def add_set_constraints(self,set_id_column,number_of_items_per_set):
         if set_id_column not in self.__pool.columns:
-            raise f"The set_id_column {set_id_column} doesn't exist in the item pool"
+            raise Exception(f"The set_id_column {set_id_column} doesn't exist in the item pool")
         
         set_ids = self.__pool[set_id_column].unique()
-        set_ids = [x for x in set_ids if pd.isna(x)==False]
+        set_ids = [x for x in set_ids if not pd.isna(x)]
 
         self.create_set_by_form_variables(number_of_sets=len(set_ids))
 
@@ -357,7 +364,7 @@ class form_assembly:
     def add_content_constraints_by_column(self,column_name,values_range):
         # self.__pool = self.__pool[[self.__item_id_column,column_name]]
         if column_name not in self.__pool.columns:
-            raise f"The set_id_column {column_name} doesn't exist in the item pool"
+            raise Exception(f"The set_id_column {column_name} doesn't exist in the item pool")
         
         for key,value in values_range.items():
             constraint = [1 if x==key else 0 for x in self.__pool[column_name]]
@@ -375,7 +382,7 @@ class form_assembly:
     ### create form pairs
     def create_form_pairs(self):
         if self.__number_of_forms < 2:
-            raise "Number of forms must be at least 2 to create pairs"
+            raise Exception("Number of forms must be at least 2 to create pairs")
         return [(i, j) for i in range(self.__number_of_forms) for j in range(i + 1, self.__number_of_forms)]
 
     ### Create form pair constraints
@@ -393,7 +400,7 @@ class form_assembly:
 
 
     ##### add 
-    def add_objective(self):
+    def add_delta_as_objective(self):
         self.__prob += pl.lpSum(self.__delta)
 
     ##### solve
@@ -405,7 +412,7 @@ class form_assembly:
                       warmStart=False,
                       solver="CBC"):
         if solver not in ["CBC", "CPLEX"]:
-            raise f"Solver {solver} is not supported. Please use 'CBC' or 'CPLEX'."
+            raise Exception(f"Solver {solver} is not supported. Please use 'CBC' or 'CPLEX'.")
         if solver == "CBC":
             self.__prob.solve(pl.pulp.PULP_CBC_CMD(
                 timeLimit=timeLimit,
@@ -444,37 +451,23 @@ class form_assembly:
 
 
 ## Ensure the module is importable and can read in data correctly
-def read_in_data(data_name):
-    if data_name not in ["pool", "enemy"]:
-        raise ValueError("data_name must be 'pool' or 'enemy'")
-    if data_name == "pool":
-        resource = "sample_items_for_ATA.xlsx"
-    elif data_name == "enemy":
-        resource = "sample_enemy_pairs_for_ATA.xlsx"
-    resource_path = importlib.resources.files("build_forms.data") / resource
-    return pd.read_excel(resource_path, engine='openpyxl')  # Ensure to use openpyxl for .xlsx files
-    
 
 
 
 if __name__ == "__main__":
-    item_data = read_in_data(data_name="pool")  # This line is just to ensure the resource is read correctly
-    enemy_pairs = read_in_data(data_name="enemy") # Read enemy pairs data
-
-    domain_column = "Domain"
-    domain_values_range = {"Domain_A":[7,7],
-                          "Domain_B":[3,3]}
-    
+    ### Sample code to demonstrate the usage of form_assembly class
+    ### read in the item pool data
+    ### Each row represent an item
+    ### Each column represent an attribute of the item
+    item_data = read_in_data(data_name="pool")  
 
 
-    difficulty_column = "Difficulty"
-    difficulty_values_range = {"Easy":[3,3],
-                         "Medium":[4,4],
-                         "Hard":[3,3]
-    }
 
-    #### Create a problem
-    sp = form_assembly(minimize=True)
+    #### Create builder object
+
+    sp = FormBuilder()
+
+    ### 
     sp.pool = item_data.head(2000)
     sp.number_of_forms = 2
     sp.number_of_items_per_form=10
@@ -484,6 +477,64 @@ if __name__ == "__main__":
     sp.irt_a_column = "IRT_a"
     sp.irt_b_column = "IRT_b"
     sp.irt_c_column = "IRT_c"
+
+
+    ### speficy the column in the item pool data that you want to control the content for each form
+    ### for example, we want to control the Domain
+    domain_column = "Domain"
+    ### For Domain A, we want to have at least 7 items and at most 7 items in each form
+    ### For Domain B, we want to have at least 3 items and at most 3 items in each form
+    domain_values_range = {"Domain_A":[7,7],
+                          "Domain_B":[3,3]}
+    
+
+    ## add the domain constraints to the problem
+    sp.add_content_constraints_by_column(
+        column_name=domain_column,
+        values_range=domain_values_range)
+    
+
+    ### specify the difficulty level for each form
+    difficulty_column = "Difficulty"
+    # Here we assume the difficulty levels are "Easy", "Medium", and "Hard"
+    #  we want to have at least 3 Easy items, 4 Medium items, and 3 Hard items in each form
+    #  we want to have at most 3 Easy items, 4 Medium items, and 3 Hard items in each form
+    # Note: The values in the range are inclusive, so [3,3] means exactly 3 items
+    # If you want to allow more flexibility, you can change the range to [3,5] for example
+    difficulty_values_range = {"Easy":[3,3],
+                         "Medium":[4,4],
+                         "Hard":[3,3]
+    }
+
+    ### add the difficulty constraints for each form
+    sp.add_content_constraints_by_column(
+        column_name=difficulty_column,
+        values_range=difficulty_values_range)
+
+
+
+    #### add set items constraints to each form
+    #### the set_id_column is the column in the item pool that specifies set information of the items
+    #### number_of_items_per_set specifies how many items should be selected from each set
+
+    sp.add_set_constraints(
+        set_id_column="SetID",
+        number_of_items_per_set=3)
+    
+    ### add enemy constraints
+    # Note: enemy_pairs should be a DataFrame with two columns: "ItemID" and "EnemyID"
+    # Each row represents a pair of items that cannot be selected together in the same form.
+
+    enemy_pairs = read_in_data(data_name="enemy") # Read enemy pairs data
+
+    ## add enemy constraints to the problem
+
+    sp.add_enemy_constraints(
+        enemy_pairs=enemy_pairs,
+        itemid_column="ItemID",
+        enemyid_column="EnemyID"
+    )
+    
 
     sp.add_information_based_on_theta_points(
         theta_points= [
@@ -496,25 +547,7 @@ if __name__ == "__main__":
             4,
             4,
             2.7])
-
-    sp.add_content_constraints_by_column(
-        column_name=domain_column,
-        values_range=domain_values_range)
     
-    sp.add_content_constraints_by_column(
-        column_name=difficulty_column,
-        values_range=difficulty_values_range)
-
-    sp.add_set_constraints(
-        set_id_column="SetID",
-        number_of_items_per_set=3)
-    sp.add_enemy_constraints(
-        enemy_pairs=enemy_pairs,
-        itemid_column="ItemID",
-        enemyid_column="EnemyID"
-    )
-    
-
     sp.add_item_usage_constraints(
         min_usage=0,
         max_usage=2)
@@ -525,7 +558,7 @@ if __name__ == "__main__":
     )
     
     #### add objective
-    sp.add_objective()
+    sp.add_delta_as_objective()
     sp.write_problem("sample.lp")
 
     sp.solve_problem(        
@@ -539,12 +572,7 @@ if __name__ == "__main__":
 
     print(f"Delta is {sp.value(sp.delta)}")
 
-    #### add constraitns
-    # sp.add_content_constraints(constraints=difficulty_level_easy,target=3,name="easy")
-    # sp.add_content_constraints(constraints=difficulty_level_medium,target=4,name="medium")
-    # sp.add_content_constraints(constraints=difficulty_level_hard,target=3,name="hard")
 
-    # sp.add_information_constraints(item_weights,3,"information")
 
     information_sum_form ={}
     items_selected = {}

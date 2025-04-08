@@ -3,15 +3,15 @@ requires = ["hatchling >= 1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/build_forms"]
+packages = ["FlexATA"]
 
 [project]
 name = "FlexATA"
-version = "0.0.6"
+version = "0.0.7"
 authors = [
   { name="Yan Fu", email="yanfu.phd@gmail.com" },
 ]
-description = "A flexible and efficient framework for Automatic Test Automation (ATA) in Python."
+description = "A flexible mixed integer toll for automatic test assembly (ATA) in Python."
 dependencies =[
   "numpy >= 2.2",
   "pandas >= 2.2",
@@ -26,7 +26,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-license = "Apache-2.0"
+license = "MIT"
 license-files = ["LICEN[CS]E*"]
 
 [project.urls]
