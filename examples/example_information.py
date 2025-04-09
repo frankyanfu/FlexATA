@@ -67,6 +67,7 @@ if __name__ == "__main__":
             4,
             2.7])
     
+    # add delta as objective
     sp.add_delta_as_objective()
 
     sp.solve_problem(        
