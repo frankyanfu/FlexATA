@@ -12,11 +12,12 @@ class TestInformationConstraints(unittest.TestCase):
 
         sp = FormBuilder(minimize=True)
         sp.pool = item_pool
-        sp.number_of_forms = 5
-        sp.number_of_items_per_form=10
-        sp.create_item_by_form_variables()
+        sp.create_item_by_form_variables(
+            number_of_forms=5,
+            number_of_items_per_form=10
+        )
         #### 
-        sp.create_delta_variables()
+
         sp.item_id_column = "ItemID"
         sp.irt_a_column="IRT_a"
         sp.irt_b_column="IRT_b"
@@ -64,12 +65,14 @@ class TestInformationConstraints(unittest.TestCase):
                 0.2,
                 0.4],
             info_targets=[
-                2.7,
-                4,
-                4,
-                2.7])
+                [2.7, 3],
+                [4, 4.3],
+                [4, 4.3],
+                [2.7, 3]
+                ],
+            as_objective=True)
         
-        sp.add_delta_as_objective()
+
 
         sp.solve_problem(        
             timeLimit=120,  # 2 minutes time limit
@@ -110,8 +113,8 @@ class TestInformationConstraints(unittest.TestCase):
         for r in range(sp.number_of_forms):
             for k in range(len(sp.theta_points)):
             
-                self.assertTrue(np.round(information_sum_form[r][k],8) >= np.round(sp.info_targets[k]-delta_value,8))
-                self.assertTrue(np.round(information_sum_form[r][k],8) <= np.round(sp.info_targets[k]+delta_value,8))
+                self.assertTrue(np.round(information_sum_form[r][k],8) >= np.round(sp.info_targets[k][0]-delta_value,8))
+                self.assertTrue(np.round(information_sum_form[r][k],8) <= np.round(sp.info_targets[k][0]+delta_value,8))
 
 
 

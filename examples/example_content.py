@@ -9,9 +9,11 @@ if __name__ == '__main__':
 
     sp = FormBuilder()
     sp.pool = item_pool
-    sp.number_of_forms = 20
-    sp.number_of_items_per_form=10
-    sp.create_item_by_form_variables()
+
+    sp.create_item_by_form_variables(
+        number_of_forms=20,
+        number_of_items_per_form=10
+    )
 
     #### add content constraints to the problem
     domain_column = "Domain"

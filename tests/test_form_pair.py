@@ -12,9 +12,11 @@ class TestFormPairConstraints(unittest.TestCase):
 
         sp = FormBuilder()
         sp.pool = item_pool
-        sp.number_of_forms = 3
-        sp.number_of_items_per_form=10
-        sp.create_item_by_form_variables()
+
+        sp.create_item_by_form_variables(
+            number_of_forms=3,
+            number_of_items_per_form=10
+        )
         #### 
         sp.create_delta_variables()
         sp.item_id_column = "ItemID"
@@ -75,10 +77,14 @@ class TestFormPairConstraints(unittest.TestCase):
                 0.2,
                 0.4],
             info_targets=[
-                2.7,
-                4,
-                4,
-                2.7])
+                [2.7, 3],
+                [4, 4.3],
+                [4, 4.3],
+                [2.7, 3]
+                ],
+            as_objective=True
+                
+                )
         
         sp.add_form_pair_constraints(
             min_overlap_prop=0.2,
@@ -121,8 +127,8 @@ class TestFormPairConstraints(unittest.TestCase):
         for r in range(sp.number_of_forms):
             for k in range(len(sp.theta_points)):
             
-                self.assertTrue(np.round(information_sum_form[r][k],8) >= np.round(sp.info_targets[k]-delta_value,8))
-                self.assertTrue(np.round(information_sum_form[r][k],8) <= np.round(sp.info_targets[k]+delta_value,8))
+                self.assertTrue(np.round(information_sum_form[r][k],8) >= np.round(sp.info_targets[k][0]-delta_value,8))
+                self.assertTrue(np.round(information_sum_form[r][k],8) <= np.round(sp.info_targets[k][0]+delta_value,8))
 
 
         for r in range(sp.number_of_forms):

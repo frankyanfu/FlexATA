@@ -1,19 +1,26 @@
-
+import unittest
 import pandas as pd
 from FlexATA.form_builder import FormBuilder
 from FlexATA.utility import read_in_data
+import random
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+    ## read in the item pool data
     item_pool = read_in_data(data_name="pool").head(2000)
 
-    sp = FormBuilder()
+    sp = FormBuilder(minimize=True)
     sp.pool = item_pool
 
     sp.create_item_by_form_variables(
-        number_of_forms=20,
+        number_of_forms=2,
         number_of_items_per_form=10
     )
+    #### 
+
     sp.item_id_column = "ItemID"
+    sp.irt_a_column="IRT_a"
+    sp.irt_b_column="IRT_b"
+    sp.irt_c_column="IRT_c"
 
     #### add content constraints to the problem
     domain_column = "Domain"
@@ -48,18 +55,16 @@ if __name__ == '__main__':
     sp.add_item_usage_constraints(
         min_usage=0,
         max_usage=1)
-    
-    enemy_pairs = read_in_data(data_name="enemy") # Read enemy pairs data
 
-    ## add enemy constraints to the problem
+    ### get the weights
+    item_weights=[random.uniform(0,1) for i in range(len(item_pool))]
 
-    sp.add_enemy_constraints(
-        enemy_pairs=enemy_pairs,
-        itemid_column="ItemID",
-        enemyid_column="EnemyID"
+    ### add the weights objective
+    sp.add_weights_objective(
+        weights=item_weights
     )
+    # sp.write_problem("sample.lp")
 
-    
 
     sp.solve_problem(        
         timeLimit=60,  # 2 minutes time limit
@@ -70,16 +75,30 @@ if __name__ == '__main__':
         solver="CBC")
 
 
-    ### get the forms
+    ## check if there is an optimal solution found
+
+    ## check if there is an optimal solution found
+    print("Status of the solution: ", sp.status)
+
+
     items_selected = {}
+    weights_sum ={}
     for r in range(sp.number_of_forms):
-        
+        weights_sum_per_form = 0
         item_combined = []
         for i in range(sp.pool_size):
             if sp.value(sp.items[i][r])==1:
                 selected_item = item_pool.iloc[i]
                 item_combined.append(selected_item)
+                weights_sum_per_form += item_weights[i] 
         items_selected[r]=pd.concat(item_combined,axis=1).T
+        weights_sum[r]=weights_sum_per_form
+
+    for r in range(sp.number_of_forms):
+        print(f"Form {r} weights sum: {weights_sum[r]}")
+
+    
+
 
     ### check if there are overlapping items across forms
     for r in range(sp.number_of_forms):
@@ -93,9 +112,5 @@ if __name__ == '__main__':
                     common_items = set(selected_items_r) & set(selected_items_c)
                     print(f"Common items between form {r} and form {c}: {common_items}")
 
-    ### check if there are any enemy pairs in the same form
-    for r in range(sp.number_of_forms):
-        selected_items = items_selected[r]["ItemID"].tolist()
-        enemy_pairs_in_form = enemy_pairs[enemy_pairs["ItemID"].isin(selected_items)&enemy_pairs["EnemyID"].isin(selected_items)]
-        print(f"Enemy pairs in form {r}: {enemy_pairs_in_form}")
+
 

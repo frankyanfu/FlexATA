@@ -7,11 +7,11 @@ packages = ["FlexATA"]
 
 [project]
 name = "FlexATA"
-version = "0.0.8"
+version = "0.0.11"
 authors = [
   { name="Yan Fu", email="yanfu.phd@gmail.com" },
 ]
-description = "A flexible mixed integer toll for automatic test assembly (ATA) in Python."
+description = "A flexible mixed integer program for automated test assembly (ATA) in Python."
 dependencies =[
   "numpy >= 2.2",
   "pandas >= 2.2",

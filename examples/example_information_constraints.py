@@ -1,19 +1,25 @@
 
 import pandas as pd
+import numpy as np
 from FlexATA.form_builder import FormBuilder
 from FlexATA.utility import read_in_data
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+    ## read in the item pool data
     item_pool = read_in_data(data_name="pool").head(2000)
 
-    sp = FormBuilder()
+    sp = FormBuilder(minimize=True)
     sp.pool = item_pool
 
     sp.create_item_by_form_variables(
-        number_of_forms=20,
+        number_of_forms=5,
         number_of_items_per_form=10
     )
+    #### 
     sp.item_id_column = "ItemID"
+    sp.irt_a_column="IRT_a"
+    sp.irt_b_column="IRT_b"
+    sp.irt_c_column="IRT_c"
 
     #### add content constraints to the problem
     domain_column = "Domain"
@@ -48,21 +54,25 @@ if __name__ == '__main__':
     sp.add_item_usage_constraints(
         min_usage=0,
         max_usage=1)
-    
-    enemy_pairs = read_in_data(data_name="enemy") # Read enemy pairs data
 
-    ## add enemy constraints to the problem
-
-    sp.add_enemy_constraints(
-        enemy_pairs=enemy_pairs,
-        itemid_column="ItemID",
-        enemyid_column="EnemyID"
-    )
-
+    ### add the information constraints for each form
+    sp.add_information_based_on_theta_points(
+        theta_points= [
+            -0.6,
+            -0.4,
+            0.2,
+            0.4],
+        info_targets=[
+            [2.7, 3.5],
+            [3.5, 4.3],
+            [3.5, 4.3],
+            [2.7, 3.5]
+            ],
+        as_objective=False)
     
 
     sp.solve_problem(        
-        timeLimit=60,  # 2 minutes time limit
+        timeLimit=120,  # 2 minutes time limit
         gapRel=0.01, # relative gap of 1%
         gapAbs=0.01, # absolute gap of 1%
         msg=True,   # print the solver messages
@@ -70,32 +80,31 @@ if __name__ == '__main__':
         solver="CBC")
 
 
-    ### get the forms
+    ## check if there is an optimal solution found
+    print("Optimal Solution Found: ", sp.status)
+
+
     items_selected = {}
+    information_sum_form ={}
     for r in range(sp.number_of_forms):
-        
+        information_per_form_per_theta_point = [0 for i in range(len(sp.theta_points))]
         item_combined = []
         for i in range(sp.pool_size):
             if sp.value(sp.items[i][r])==1:
                 selected_item = item_pool.iloc[i]
                 item_combined.append(selected_item)
+
+                for k in range(len(sp.theta_points)):
+                    information_per_form_per_theta_point[k] += sp.information_all[k][i]
+
         items_selected[r]=pd.concat(item_combined,axis=1).T
+        information_sum_form[r]=information_per_form_per_theta_point
+    
+    ### check if the information is within the range of the targets
+    delta_value = sp.value(sp.delta)
 
-    ### check if there are overlapping items across forms
     for r in range(sp.number_of_forms):
-        for c in range(sp.number_of_forms):
-                if r < c:
-                    # Ensure no item is repeated across forms
-                    selected_items_r = items_selected[r]["ItemID"].tolist()
-                    selected_items_c = items_selected[c]["ItemID"].tolist()
-
-                    ## check if the two lists have any common items
-                    common_items = set(selected_items_r) & set(selected_items_c)
-                    print(f"Common items between form {r} and form {c}: {common_items}")
-
-    ### check if there are any enemy pairs in the same form
-    for r in range(sp.number_of_forms):
-        selected_items = items_selected[r]["ItemID"].tolist()
-        enemy_pairs_in_form = enemy_pairs[enemy_pairs["ItemID"].isin(selected_items)&enemy_pairs["EnemyID"].isin(selected_items)]
-        print(f"Enemy pairs in form {r}: {enemy_pairs_in_form}")
-
+        for k in range(len(sp.theta_points)):
+        
+            print(np.round(information_sum_form[r][k],8) >= np.round(sp.info_targets[k][0]-delta_value,8))
+            print(np.round(information_sum_form[r][k],8) <= np.round(sp.info_targets[k][1]+delta_value,8))

@@ -8,7 +8,7 @@ warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 
 
 ##TODO make it a plot for information and SE
-
+##TODO add more solvers from the Pulp Package
 
 
 class FormBuilder:
@@ -238,7 +238,13 @@ class FormBuilder:
         return self.__information_all
 
     ### creating item by form variables
-    def create_item_by_form_variables(self):
+    def create_item_by_form_variables(self,
+                                      number_of_items_per_form=None,
+                                      number_of_forms=None):
+        if number_of_items_per_form:
+            self.__number_of_items_per_form = number_of_items_per_form
+        if number_of_forms:
+            self.__number_of_forms = number_of_forms
         self.__items = pl.LpVariable.dicts("Item", 
                                            (range(self.__pool_size),range(self.__number_of_forms)), 
                                            cat="Binary")
@@ -264,7 +270,7 @@ class FormBuilder:
                                                cat="Binary")
 
     ### add information constraints based on theta points
-    def add_information_based_on_theta_points(self,theta_points,info_targets):
+    def add_information_based_on_theta_points(self,theta_points,info_targets,as_objective=True):
         self.__theta_points=theta_points
         self.__info_targets=info_targets
         if len(theta_points)!=len(info_targets):
@@ -276,21 +282,66 @@ class FormBuilder:
         if not self.__irt_c_column:
             raise Exception("Please set the irt_c_column in the item pool before adding information constraints")
 
+        if as_objective:
+            ### first create delta variable
+            self.create_delta_variables()
+            ### add delta as objective
+            self.add_delta_as_objective()
+
         for i,theta in enumerate(theta_points):
             information = [fisher_info(x[0],x[1],x[2],theta,D=1.702) for x in self.__pool[[self.__irt_a_column,self.__irt_b_column,self.__irt_c_column]].values]
             self.__information_all.append(information)
-            self.add_information_constraints(
-                information=information,
-                target=info_targets[i],
-                name=f"theta_{str(theta)}")
-        
-    def add_information_constraints(self,information,target,name):
+            if as_objective:
+                self.add_information_objective(
+                    information=information,
+                    target=info_targets[i],
+                    name=f"theta_{str(theta)}")
+            else:
+                self.add_information_constraints(
+                    information=information,
+                    target=info_targets[i],
+                    name=f"theta_{str(theta)}")                
+
+            
+    ##### add 
+    def add_delta_as_objective(self):
+        self.__prob += pl.lpSum(self.__delta)
+
+    ### add information constraints based on information values
+    ### add delta variables to control the information difference
+    def add_information_objective(self,information,target,name):
         if len(information)!=self.__pool_size:
-            raise Exception("The information length is different from the pool size")
+            raise Exception("The information length is different from the item pool size")
         
         for r in range(self.__number_of_forms):
-            self.__prob += (pl.lpSum([self.__items[i][r]*information[i] for i in range(self.__pool_size)]+self.__delta) >= target,f"form{r}_{name}_plus_delta")
-            self.__prob += (pl.lpSum([self.__items[i][r]*information[i] for i in range(self.__pool_size)]-self.__delta) <= target,f"form{r}_{name}_minus_delta")
+            self.__prob += (pl.lpSum([self.__items[i][r]*information[i] for i in range(self.__pool_size)]+self.__delta) >= target[0],f"form{r}_{name}_plus_delta")
+            self.__prob += (pl.lpSum([self.__items[i][r]*information[i] for i in range(self.__pool_size)]-self.__delta) <= target[0],f"form{r}_{name}_minus_delta")
+
+
+    ### purely constrol the information
+    def add_information_constraints(self,information,target,name):
+        if len(information)!=self.__pool_size:
+            raise Exception("The information length is different from the item pool size")
+        
+        for r in range(self.__number_of_forms):
+            self.__prob += (pl.lpSum([self.__items[i][r]*information[i] for i in range(self.__pool_size)]) >= target[0],f"form{r}_{name}_minimum")
+            self.__prob += (pl.lpSum([self.__items[i][r]*information[i] for i in range(self.__pool_size)]) <= target[1],f"form{r}_{name}_maximum")
+
+    ### add weight to the objective
+    def add_weights_objective(self,weights):
+        if len(weights)!=self.__pool_size:
+            raise Exception("The weights length is different from the item pool size")
+        self.__prob += pl.lpSum([self.__items[i][r]*weights[i] for i in range(self.__pool_size) for r in range(self.__number_of_forms)])
+           
+
+    ### add weights as constraints
+    def add_weights_constraints(self,weights,weight_target):
+        if len(weights)!=self.__pool_size:
+            raise Exception("The weights length is different from the item pool size")
+        
+        for r in range(self.__number_of_forms):
+            self.__prob += (pl.lpSum([self.__items[i][r]*weights[i] for i in range(self.__pool_size)]) >= weight_target[0],f"form{r}_weights_minimum")
+            self.__prob += (pl.lpSum([self.__items[i][r]*weights[i] for i in range(self.__pool_size)]) <= weight_target[1],f"form{r}_weights_maximum")
 
     ##### add content constraints
     def add_content_constraints(self,constraints,target,direction,name):
@@ -399,9 +450,6 @@ class FormBuilder:
             self.__prob  += (pl.lpSum([self.__form_pair[k][v] for k in range(self.__pool_size)]) <= max_overlap_prop*self.__number_of_items_per_form,f"forms_{i}_and_{j}_max_overlap")
 
 
-    ##### add 
-    def add_delta_as_objective(self):
-        self.__prob += pl.lpSum(self.__delta)
 
     ##### solve
     def solve_problem(self,
@@ -447,13 +495,8 @@ class FormBuilder:
         else:
             raise ValueError("The variable must be an instance of LpVariable.")
         
-        
-
 
 ## Ensure the module is importable and can read in data correctly
-
-
-
 if __name__ == "__main__":
     ### Sample code to demonstrate the usage of form_assembly class
     ### read in the item pool data
@@ -472,7 +515,6 @@ if __name__ == "__main__":
     sp.number_of_forms = 2
     sp.number_of_items_per_form=10
     sp.create_item_by_form_variables()
-    sp.create_delta_variables()
     sp.item_id_column="ItemID"
     sp.irt_a_column = "IRT_a"
     sp.irt_b_column = "IRT_b"
@@ -543,10 +585,14 @@ if __name__ == "__main__":
             0.2,
             0.4],
         info_targets=[
-            2.7,
-            4,
-            4,
-            2.7])
+            [2.5, 3],
+            [3.6, 4.3],
+            [3.6, 4.3],
+            [2.5, 3]
+            ],
+
+        as_objective=False
+            )
     
     sp.add_item_usage_constraints(
         min_usage=0,
@@ -558,7 +604,6 @@ if __name__ == "__main__":
     )
     
     #### add objective
-    sp.add_delta_as_objective()
     sp.write_problem("sample.lp")
 
     sp.solve_problem(        
