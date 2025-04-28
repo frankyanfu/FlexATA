@@ -24,11 +24,6 @@ class TestFormPairConstraints(unittest.TestCase):
         sp.irt_b_column="IRT_b"
         sp.irt_c_column="IRT_c"
 
-        #### add content constraints to the problem
-        domain_column = "Domain"
-        domain_values_range = {"Domain_A":[7,7],
-                          "Domain_B":[3,3]}
-    
 
         #### add content constraints to the problem
         domain_column = "Domain"

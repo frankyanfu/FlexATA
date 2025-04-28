@@ -22,11 +22,6 @@ if __name__ == "__main__":
     sp.irt_b_column="IRT_b"
     sp.irt_c_column="IRT_c"
 
-    #### add content constraints to the problem
-    domain_column = "Domain"
-    domain_values_range = {"Domain_A":[7,7],
-                        "Domain_B":[3,3]}
-
 
     #### add content constraints to the problem
     domain_column = "Domain"
@@ -88,7 +83,7 @@ if __name__ == "__main__":
     )
 
     sp.solve_problem(        
-        timeLimit=240,  # 2 minutes time limit
+        timeLimit=120,  # 2 minutes time limit
         gapRel=0.01, # relative gap of 1%
         gapAbs=0.01, # absolute gap of 1%
         msg=True,   # print the solver messages

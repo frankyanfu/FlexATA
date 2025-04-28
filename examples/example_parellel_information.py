@@ -63,16 +63,16 @@ if __name__ == "__main__":
             0.2,
             0.4],
         info_targets=[
-            [2.7,3],
-            [4,4.3],
-            [4,4.3],
-            [2.7,3]
+            [2.7, 3],
+            [4, 4.3],
+            [4, 4.3],
+            [2.7, 3]
             ],
         as_objective=True)
     
 
     sp.solve_problem(        
-        timeLimit=120,  # 2 minutes time limit
+        timeLimit=30,  # 2 minutes time limit
         gapRel=0.01, # relative gap of 1%
         gapAbs=0.01, # absolute gap of 1%
         msg=True,   # print the solver messages

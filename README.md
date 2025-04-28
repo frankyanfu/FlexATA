@@ -97,7 +97,7 @@ The main class for defining and solving the test assembly problem.
 
 **Methods**:
 
-- `create_item_by_form_variables()`: Creates decision variables for item selection.
+- `create_item_by_form_variables(number_of_forms,number_of_items_per_form)`: Creates decision variables for item selection.
 - `add_content_constraints_by_column(column_name, values_range)`: Adds content constraints.
 - `add_information_based_on_theta_points(theta_points, info_targets,as_objective)`: Adds information constraints or objectives.
 - `add_weight_objective(weights)`: Add weights as objectives
@@ -119,10 +119,10 @@ The item pool should be a pandas DataFrame with the following columns:
 
 Enemy Pairs
 
-A pandas DataFrame with two columns:
+A pandas DataFrame with two columns (one direction is ok):
 
-- `ItemID`: The first item in the enemy pair.
-- `EnemyID`: The second item in the enemy pair.
+- `ItemID`: Th item ID in the enemy pair.
+- `EnemyID`: The enemy item in the enemy pair.
 
 ## Contributing
 

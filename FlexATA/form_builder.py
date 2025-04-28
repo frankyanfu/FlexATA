@@ -461,14 +461,16 @@ class FormBuilder:
                       solver="CBC"):
         if solver not in ["CBC", "CPLEX"]:
             raise Exception(f"Solver {solver} is not supported. Please use 'CBC' or 'CPLEX'.")
+        # Cbc (Coin-or branch and cut)
         if solver == "CBC":
+
             self.__prob.solve(pl.pulp.PULP_CBC_CMD(
                 timeLimit=timeLimit,
                 gapRel=gapRel,
                 gapAbs=gapAbs,
                 msg=msg,
                 warmStart=warmStart))
-        
+        # CPLEX solver community version, with license, it will be the commercial one
         if solver == "CPLEX":
             self.__prob.solve(pl.CPLEX_PY(
                 timeLimit=timeLimit,
